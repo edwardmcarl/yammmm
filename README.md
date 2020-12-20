@@ -1,0 +1,1 @@
+Yet Another Magic Mirror Music Module is a customizable module for Magic Mirror 2 that visualizes your Raspberry Pi's audio output. Intended for use with a Raspberry Pi running PulseAudio (i.e. using a Raspberry Pi Os release from Dec 2020 or later). Not extensively tested for different sound devices; may require further PulseAudio configuration on your setup.
