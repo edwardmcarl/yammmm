@@ -10,16 +10,16 @@ Module.register("yammmm", {
         
         //visualization
         scalingFactor: 60,
-        dampingFactor: 4.7,
+        dampingFactor: 4.0,
         minPlottedFrequency: 100,
         maxPlottedFrequency: 5000,
         canvasWidth: 800,
-        canvasHeight: 800,
+        canvasHeight: 600,
         
         //processing
         smoothingConstant: 0.6  ,
 
-        binCount: 250,
+        binCount: 80,
         binMinSize: 5
     },
 
@@ -31,7 +31,6 @@ Module.register("yammmm", {
         canvas.width = this.config.canvasWidth;
         canvas.height = this.config.canvasHeight;
         this.canvas = canvas;
-        //console.log(canvas)
         this.canvasContext = canvas.getContext("2d");
         wrapper.appendChild(canvas);
         console.log("Got module dom: yammmm")
@@ -40,7 +39,6 @@ Module.register("yammmm", {
     },
 
     sliceFrequencyIndices: function(arrayLength, startFrequency, endFrequency) {
-        //console.log(this.maximumFrequency)
         let sliceStart = Math.floor((arrayLength - 1) * startFrequency / this.maximumFrequency);
         let sliceEnd = Math.floor((arrayLength - 1) * endFrequency / this.maximumFrequency);
         let sliceLength = 1 + sliceEnd - sliceStart;
@@ -66,8 +64,6 @@ Module.register("yammmm", {
             );
         
         this.coords = this.gammaCoordinates();
-        console.log(this.coords)
-        console.log(this.config.binMinSize);
         [this.binMap, this.edgeMap] = this.minSizeBinning(this.coords, this.config.binMinSize);
         
         //Send a notification 
@@ -75,32 +71,14 @@ Module.register("yammmm", {
     },
 
 
-    // Start the stream
-
-    binningTransform: function(frequencyData, binCount) {
-        //if endFrequency < startFrequency throw an error
-        //@todo pull out into function?
-        //do the transformation only on the data corresponding to our selected frequency ranges
-        //no need to actually do a .slice() and allocate that memory
-
-
-        // if we try to just evenly distribute data points across the slice, we get an even distribution of 'empty' bins where
-        // flooring results in zero data points being assigned. To avoid this, we use a slightly altered mapping that guarantees
-        // that all bins will be filled, at the cost of trimming the number of bins below the requested number
-        let out = new Array(this.sliceLength * Math.floor(binCount / this.sliceLength)).fill(0);
-        //console.log(frequencySlice.length - (frequencySlice.length * Math.floor(binCount / frequencySlice.length)))
-        for (let i = 0; i < this.sliceLength; i++) {
-            let newBin = i * Math.floor(binCount / this.sliceLength)
-            if (frequencyData[this.sliceStart + i] > out[newBin]) {
-            out[newBin] = frequencyData[this.sliceStart + i]
-            }
-        }
-        return out;
-    },
-
+    /**
+     * Transforms the evenly-spaced frequencies of the fft into an approximately logarithmic horizontal scale more reflective of human perception
+     * 
+     * @param {*} gamma variable representing the degree of "stretch" applied to the spectrum 
+     * 
+     * @return {Array} frequencyCoordinates, the scaled horizontal positions of every frequency in canvas coordinates
+     */
     gammaCoordinates: function(gamma = 1.2){
-        console.log("gamma knife")
-        console.log(this.sliceLength)
         let frequencyCoordinates = new Array(this.sliceLength);
         
         for (let i = 0; i < this.sliceLength; i++){
@@ -114,11 +92,9 @@ Module.register("yammmm", {
      * @param {*} frequencyCoordinates An array containing the scaled horizontal position of the frequency at each index, 
      *                                 as output by a ___Coordinates() function
      * @param {*} minWidth The minumum width, in pixels, of each bin
-     * @param {*} startFrequency Lowest frequency, in Hz, to bin
-     * @param {*} endFrequency  Highest frequency, in Hz, to bin
      * 
-     * @return {Array} frequencyBinMap, an array containing the number of the bin each frequency will ultimately be plotted under
-     * @return {Array} binEdgeMap, an array containing the horizontal coordinate of the leading edge of each bin 
+     * @return {Array} frequencyBinMap an array containing the number of the bin each frequency will ultimately be plotted under
+     * @return {Array} binEdgeMap an array containing the horizontal coordinate of the leading edge of each bin 
      */
     minSizeBinning: function(frequencyCoordinates, minWidth = 5){ //minWidth including 1-px space?
     
@@ -126,16 +102,39 @@ Module.register("yammmm", {
 
         let binEdgeMap = new Array(1).fill(0);
             for (let frequencyId = this.sliceStart; frequencyId < this.sliceEnd + 1; frequencyId++){
-                let nextFreqEdge = Math.round(frequencyCoordinates[frequencyId - this.sliceStart])
+                let nextFreqEdge = Math.round(frequencyCoordinates[frequencyId - this.sliceStart]);
                 let binWidth = nextFreqEdge - binEdgeMap[binEdgeMap.length - 1]; //distance between leading edge of current bin and leading edge of last bin
                 frequencyBinMap[frequencyId] = binEdgeMap.length; //mark this frequency as being for the current bin
                 if (binWidth >= minWidth){
                     binEdgeMap.push(nextFreqEdge);
                 } //otherwise, we just "extend" this bin to include the next frequency (done in the next iteration)
             }
-            console.log("coords")
-            console.log(frequencyCoordinates);
             return [frequencyBinMap, binEdgeMap];
+    },
+
+     /**
+     *  todo: currently nonfunctional
+     * @param {*} frequencyCoordinates An array containing the scaled horizontal position of the frequency at each index, 
+     *                                 as output by a ___Coordinates() function
+     * @param {*} desiredBins The number of  equally-sized bins to sort frequencies into
+     * 
+     * @return {Array} frequencyBinMap an array containing the number of the bin each frequency will ultimately be plotted under
+     * @return {Array} binEdgeMap an array containing the horizontal coordinate of the leading edge of each bin 
+     */
+    equalSizeBinning: function(frequencyCoordinates, desiredBins= 100){
+        let frequencyBinMap = new Array(frequencyCoordinates.length).fill(-1); //an entry of -1 indicates that a frequency will not be graphd
+        let binEdgeMap = new Array(desiredBins);
+        let width = Math.floor(this.config.canvasWidth / desiredBins);
+        for (let i = 0; i < binEdgeMap.length; i++){
+            binEdgeMap[i] = i * width;
+        }
+
+        for (let frequencyId = this.sliceStart; frequencyId < this.sliceEnd + 1; frequencyId++){
+            frequencyBinMap[frequencyId] = Math.ceil(frequencyCoordinates[frequencyId] / width); //== Math.floor() + 1, == Math.floor() while ignoring bin 0 for consistency 
+            //                                                                   with minSizeBinning's outputs
+        }
+        //console.log(frequencyBinMap)
+        return [frequencyBinMap, binEdgeMap];
     },
 
     /**
@@ -153,7 +152,7 @@ Module.register("yammmm", {
                 continue;
             }
             if (frequencyData[i] > binHeights[frequencyBinMap[i]]){
-                binHeights[frequencyBinMap[i]] = frequencyData[i]
+                binHeights[frequencyBinMap[i]] = frequencyData[i];
             }
         }
         return binHeights
@@ -167,11 +166,18 @@ Module.register("yammmm", {
 
     draw: function () {
 
-
         requestAnimationFrame(() => this.draw());
         this.lastDrawnMagnitudes = this.magnitudes
+        this.oldTime = this.time;
+        this.time = performance.now();
+
+        if (this.oldTime !== undefined){
+            //console.log((this.time - this.oldTime))
+        }
+
         if (this.newSignal){
             this.magnitudes = this.newMagnitudes //todo refactor to local variable
+            this.newSignal = false;
         }
         if (this.magnitudes === undefined || this.lastDrawnMagnitudes === undefined){
             return;
@@ -194,7 +200,7 @@ Module.register("yammmm", {
             this.canvasContext.fillStyle = 'rgb(100,100,100)';
             this.canvasContext.fillRect(oldEdge + i, this.canvas.height - barHeight, barWidth, barHeight);
         }
-
+        //console.log(performance.now() - this.time);
     },
 
     notificationReceived: function(notification, payload, sender) {

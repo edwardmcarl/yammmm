@@ -30,7 +30,6 @@ module.exports = NodeHelper.create({
                     payload.frameSize, // default 1920 (HiFiBerry DIGI+)
                     "yammmm", // Device/stream name for JACK and PulseAudio
                     (pcm) => {
-                        //this.rawData = pcm;
                         let real = Buffer.concat([pcm, this.filler]); //total length 4096 bytes, but it's 16-bit audio so this represents 2048 samples
                         real = new Uint16Array(real.buffer, real.byteOffset, real.byteLength / Uint16Array.BYTES_PER_ELEMENT) //total length 2048
                         let mags = ft(wndw.blackman(real, 0.16)); //total length 1024
