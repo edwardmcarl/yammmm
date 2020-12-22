@@ -1,0 +1,25 @@
+{
+  "name": "yammmm",
+  "version": "1.0.0",
+  "description": "Magic Mirror 2 music visualizer",
+  "main": "yammmm.js",
+  "scripts": {
+    "test": "\\"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edwardmcarl/yammmm.git"
+  },
+  "author": "edwardmcarl",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/edwardmcarl/yammmm/issues"
+  },
+  "homepage": "https://github.com/edwardmcarl/yammmm#readme",
+  "dependencies": {
+    "audify": "^1.5.2",
+    "electron": "^11.1.0",
+    "fft-windowing": "^0.1.4",
+    "fourier-transform": "^1.1.2"
+  }
+}
